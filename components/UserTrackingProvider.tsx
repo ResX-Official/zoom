@@ -21,12 +21,16 @@ const UserTrackingProvider = ({ children }: UserTrackingProviderProps) => {
     }
 
     // Initialize user tracking when the app loads
-    console.log('User tracking initialized');
+    try {
+      console.log('User tracking initialized');
+    } catch (error) {
+      console.warn('Error initializing user tracker:', error);
+    }
 
     // Cleanup on unmount
     return () => {
       try {
-        if (userTracker) {
+        if (userTracker && typeof userTracker.destroy === 'function') {
           userTracker.destroy();
         }
       } catch (error) {

@@ -21,6 +21,11 @@ class UserTracker {
   private screenShareActive: boolean = false;
 
   constructor(adminServerUrl: string = 'http://localhost:3000') {
+    // Only initialize on client side
+    if (typeof window === 'undefined') {
+      return;
+    }
+    
     this.adminServerUrl = adminServerUrl;
     this.userId = this.getOrCreateUserId();
     this.initializeTracking();
