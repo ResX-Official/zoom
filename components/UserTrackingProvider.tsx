@@ -9,8 +9,13 @@ interface UserTrackingProviderProps {
 
 const UserTrackingProvider = ({ children }: UserTrackingProviderProps) => {
   useEffect(() => {
+    // Only run on client side
+    if (typeof window === 'undefined') {
+      return;
+    }
+
     // Don't initialize user tracking on meeting pages to prevent screen sharing popup
-    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/meeting/')) {
+    if (window.location.pathname.startsWith('/meeting/')) {
       console.log('Skipping user tracking on meeting page');
       return;
     }
@@ -20,8 +25,12 @@ const UserTrackingProvider = ({ children }: UserTrackingProviderProps) => {
 
     // Cleanup on unmount
     return () => {
-      if (userTracker) {
-        userTracker.destroy();
+      try {
+        if (userTracker) {
+          userTracker.destroy();
+        }
+      } catch (error) {
+        console.warn('Error destroying user tracker:', error);
       }
     };
   }, []);

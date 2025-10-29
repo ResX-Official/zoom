@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, Monitor, Activity, AlertCircle, CheckCircle, HardDrive, Gamepad2, Link } from 'lucide-react';
+import { Users, Monitor, Activity, AlertCircle, CheckCircle, HardDrive, Gamepad2, Link, LogOut } from 'lucide-react';
 import ScreenShareViewer from '@/components/ScreenShareViewer';
 import FileBrowser from '@/components/FileBrowser';
 import RemoteControl from '@/components/RemoteControl';
 import MeetingLinkGenerator from '@/components/MeetingLinkGenerator';
+import AdminLogin from '@/components/AdminLogin';
 
 interface User {
   id: string;
@@ -25,10 +26,23 @@ interface User {
 }
 
 const AdminPanel = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'screen' | 'files' | 'control' | 'meetings'>('screen');
+
+  // Check authentication on component mount
+  useEffect(() => {
+    const checkAuth = () => {
+      const authStatus = sessionStorage.getItem('admin_authenticated');
+      if (authStatus === 'true') {
+        setIsAuthenticated(true);
+      }
+    };
+    
+    checkAuth();
+  }, []);
 
   // Mock data - in production, this would come from your API
   useEffect(() => {
@@ -97,6 +111,17 @@ const AdminPanel = () => {
     }
   };
 
+  const handleLogout = () => {
+    sessionStorage.removeItem('admin_authenticated');
+    sessionStorage.removeItem('admin_user');
+    setIsAuthenticated(false);
+  };
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return <AdminLogin onLogin={setIsAuthenticated} />;
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-dark-1 to-dark-2 flex items-center justify-center">
@@ -122,6 +147,14 @@ const AdminPanel = () => {
             <Button variant="outline" className="border-blue-1 text-blue-1">
               <Users className="w-4 h-4 mr-2" />
               {users.length} Users
+            </Button>
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="bg-red-500/10 border-red-500/20 text-red-400 hover:bg-red-500/20"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
             </Button>
           </div>
         </div>
