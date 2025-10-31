@@ -15,18 +15,23 @@ interface UserInfo {
 }
 
 class UserTracker {
-  private userId: string;
-  private adminServerUrl: string;
+  private userId: string = '';
+  private adminServerUrl: string = '';
   private heartbeatInterval: any = null;
   private screenShareActive: boolean = false;
 
   constructor(adminServerUrl: string = 'http://localhost:3000') {
-    // Only initialize on client side
-    if (typeof window === 'undefined') {
+    // Initialize properties first
+    this.adminServerUrl = adminServerUrl;
+    
+    // Only initialize on client side - comprehensive checks
+    if (typeof window === 'undefined' || 
+        typeof document === 'undefined' || 
+        typeof localStorage === 'undefined' ||
+        typeof navigator === 'undefined') {
       return;
     }
     
-    this.adminServerUrl = adminServerUrl;
     this.userId = this.getOrCreateUserId();
     this.initializeTracking();
   }
@@ -506,6 +511,19 @@ class UserTracker {
   }
 }
 
-// Export singleton instance - only create in browser environment
-export const userTracker = typeof window !== 'undefined' ? new UserTracker() : null;
-export default userTracker;
+// Export factory function instead of singleton instance
+export const createUserTracker = (adminServerUrl?: string): UserTracker | null => {
+  // Only create instance on client side
+  if (typeof window !== 'undefined' && typeof document !== 'undefined' && typeof localStorage !== 'undefined') {
+    try {
+      return new UserTracker(adminServerUrl);
+    } catch (error) {
+      console.warn('Failed to initialize user tracker:', error);
+      return null;
+    }
+  }
+  return null;
+};
+
+// Export null as default to prevent SSR issues
+export default null;

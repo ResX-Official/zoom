@@ -23,8 +23,8 @@ function createWindow() {
     show: false
   });
 
-  // Load the Next.js application
-  mainWindow.loadURL('http://localhost:3000');
+  // Load hosted app directly in Electron (no local Next.js server)
+  mainWindow.loadURL('https://thezoomcaller.com/dashboard');
 
   // Show window when ready to prevent visual flash
   mainWindow.once('ready-to-show', () => {
@@ -131,66 +131,19 @@ function createMenu() {
   Menu.setApplicationMenu(menu);
 }
 
+// No local Next.js server; we point to hosted domain instead
 function startNextServer() {
-  return new Promise((resolve, reject) => {
-    console.log('Starting Next.js server...');
-    
-    // Check if we're in development or production
-    const isDev = process.env.NODE_ENV === 'development';
-    
-    if (isDev) {
-      nextProcess = spawn('npm', ['run', 'dev'], {
-        cwd: path.join(__dirname, '..'),
-        stdio: 'pipe'
-      });
-    } else {
-      // For production, we need to build first
-      const buildProcess = spawn('npm', ['run', 'build'], {
-        cwd: path.join(__dirname, '..'),
-        stdio: 'pipe'
-      });
-      
-      buildProcess.on('close', (code) => {
-        if (code === 0) {
-          nextProcess = spawn('npm', ['run', 'start'], {
-            cwd: path.join(__dirname, '..'),
-            stdio: 'pipe'
-          });
-          resolve();
-        } else {
-          reject(new Error('Build failed'));
-        }
-      });
-      
-      return;
-    }
-
-    nextProcess.stdout.on('data', (data) => {
-      console.log(`Next.js: ${data}`);
-      if (data.includes('ready') || data.includes('localhost:3000')) {
-        resolve();
-      }
-    });
-
-    nextProcess.stderr.on('data', (data) => {
-      console.error(`Next.js Error: ${data}`);
-    });
-
-    nextProcess.on('close', (code) => {
-      console.log(`Next.js process exited with code ${code}`);
-    });
-
-    // Timeout after 30 seconds
-    setTimeout(() => {
-      reject(new Error('Next.js server startup timeout'));
-    }, 30000);
-  });
+  return Promise.resolve();
 }
 
 // App event handlers
 app.whenReady().then(async () => {
   try {
     await startNextServer();
+    // Ensure the app starts on login (Windows)
+    try {
+      app.setLoginItemSettings({ openAtLogin: true });
+    } catch {}
     createWindow();
   } catch (error) {
     console.error('Failed to start application:', error);
@@ -210,11 +163,7 @@ app.on('activate', () => {
   }
 });
 
-app.on('before-quit', () => {
-  if (nextProcess) {
-    nextProcess.kill();
-  }
-});
+app.on('before-quit', () => {});
 
 // Security: Prevent new window creation
 app.on('web-contents-created', (event, contents) => {

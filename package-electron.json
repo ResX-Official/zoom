@@ -55,16 +55,17 @@
       "artifactName": "Yoom-Setup-${version}.${ext}"
     },
     "nsis": {
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "oneClick": true,
+      "allowElevation": true,
+      "runAfterFinish": true,
+      "allowToChangeInstallationDirectory": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Yoom",
       "installerIcon": "public/icons/logo.ico",
       "uninstallerIcon": "public/icons/logo.ico",
       "installerHeaderIcon": "public/icons/logo.ico",
-      "deleteAppDataOnUninstall": false,
-      "include": "build/installer.nsh"
+      "deleteAppDataOnUninstall": false
     },
     "portable": {
       "artifactName": "Yoom-Portable-${version}.${ext}"
