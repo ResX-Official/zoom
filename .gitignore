@@ -42,3 +42,7 @@ next-env.d.ts
 # Electron build files (too large for Git/Vercel - host separately)
 /dist-electron
 /build-installer.nsi
+# Installer files (too large for Git)
+public/installer/*.exe
+public/installer/*.zip
+dist-electron/*.exe
