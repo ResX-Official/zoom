@@ -12,12 +12,10 @@ const nextConfig = {
     serverComponentsExternalPackages: [],
   },
   typescript: {
-    // Avoid type errors blocking CI/electron builds
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   eslint: {
-    // Allow build to proceed even if ESLint finds issues
-    ignoreDuringBuilds: true,
+    ignoreDuringBuilds: false,
   },
 };
 

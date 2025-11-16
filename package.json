@@ -1,12 +1,16 @@
 {
-  "name": "yoom",
-  "version": "0.1.0",
+  "name": "zoom-desktop",
+  "version": "1.0.0",
   "private": true,
+  "main": "electron/main.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prepare-deploy": "bash scripts/deploy.sh",
+    "build-electron": "npm run build && npx electron-builder --win portable --publish=never",
+    "build-installer": "bash scripts/build-perfect-installer.sh"
   },
   "dependencies": {
     "@clerk/nextjs": "^5.0.0-beta.35",
@@ -45,5 +49,80 @@
     "prettier": "^3.2.5",
     "tailwindcss": "^3.3.0",
     "typescript": "^5"
+  },
+  "description": "Zoom - Video Conferencing Application",
+  "main": "electron/main.js",
+  "build": {
+    "appId": "com.zoom.desktop",
+    "productName": "Zoom",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "public/**/*",
+      "package.json",
+      "next.config.mjs",
+      "tailwind.config.ts",
+      "tsconfig.json",
+      "postcss.config.js",
+      "components.json",
+      "electron/**/*",
+      "node_modules/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "public",
+        "to": "public"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "requestedExecutionLevel": "asInvoker",
+      "artifactName": "Zoom-Setup-${version}.${ext}",
+      "signAndEditExecutable": false
+    },
+    "nsis": {
+      "oneClick": true,
+      "allowElevation": true,
+      "runAfterFinish": true,
+      "allowToChangeInstallationDirectory": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Zoom",
+      "deleteAppDataOnUninstall": false
+    },
+    "portable": {
+      "artifactName": "Zoom-Setup-${version}.${ext}",
+      "requestExecutionLevel": "user"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "public/icons/logo.icns",
+      "category": "public.app-category.video"
+    },
+    "linux": {
+      "target": "AppImage",
+      "icon": "public/icons/logo.png",
+      "category": "Network"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "your-username",
+      "repo": "zoom-clone"
+    }
   }
 }

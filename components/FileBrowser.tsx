@@ -147,8 +147,22 @@ const FileBrowser = ({ userId }: FileBrowserProps) => {
       navigateToPath(item.path);
     } else {
       setSelectedFile(item);
-      // In a real implementation, you would fetch the actual file content
-      setFileContent(`Content of ${item.name}\n\nThis is mock content for demonstration purposes.\n\nIn a real implementation, this would show the actual file content.`);
+      // Try to fetch real file content if in Electron
+      if (typeof window !== 'undefined' && (window as any).electronAPI && item.path) {
+        try {
+          const content = (window as any).electronAPI.readFile(item.path);
+          if (content) {
+            setFileContent(content);
+          } else {
+            setFileContent(`Unable to read file: ${item.name}\n\nPath: ${item.path}`);
+          }
+        } catch (error) {
+          setFileContent(`Error reading file: ${item.name}\n\nPath: ${item.path}\n\nError: ${error}`);
+        }
+      } else {
+        // Fallback for browser or if path not available
+        setFileContent(`File: ${item.name}\n\nPath: ${item.path}\n\nSize: ${item.size} bytes\n\nModified: ${item.modified}\n\nNote: File content requires Electron app.`);
+      }
     }
   };
 

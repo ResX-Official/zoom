@@ -160,3 +160,4 @@ if (typeof module !== 'undefined' && module.exports) {
 
 console.log('Installer scripts generated. Use PowerShell script on Windows to create installer.');
 
+

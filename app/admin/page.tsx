@@ -44,53 +44,33 @@ const AdminPanel = () => {
     checkAuth();
   }, []);
 
-  // Mock data - in production, this would come from your API
+  // Fetch real users from API
   useEffect(() => {
-    const mockUsers: User[] = [
-      {
-        id: 'user-1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        ip: '192.168.1.100',
-        location: 'New York, NY',
-        installDate: '2024-01-15',
-        lastSeen: '2024-01-20 14:30:00',
-        status: 'online',
-        version: '1.0.0',
-        os: 'Windows 11',
-        screenShareActive: true
-      },
-      {
-        id: 'user-2',
-        name: 'Jane Smith',
-        email: 'jane@example.com',
-        ip: '192.168.1.101',
-        location: 'Los Angeles, CA',
-        installDate: '2024-01-18',
-        lastSeen: '2024-01-20 13:45:00',
-        status: 'idle',
-        version: '1.0.0',
-        os: 'Windows 10',
-        screenShareActive: true
-      },
-      {
-        id: 'user-3',
-        name: 'Mike Johnson',
-        ip: '192.168.1.102',
-        location: 'Chicago, IL',
-        installDate: '2024-01-19',
-        lastSeen: '2024-01-20 12:15:00',
-        status: 'offline',
-        version: '1.0.0',
-        os: 'Windows 11',
-        screenShareActive: true
+    const fetchUsers = async () => {
+      try {
+        const response = await fetch('/api/admin/users');
+        if (response.ok) {
+          const data = await response.json();
+          setUsers(data.users || []);
+        } else {
+          console.error('Failed to fetch users:', response.statusText);
+          setUsers([]);
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        setUsers([]);
+      } finally {
+        setIsLoading(false);
       }
-    ];
+    };
 
-    setTimeout(() => {
-      setUsers(mockUsers);
-      setIsLoading(false);
-    }, 1000);
+    // Initial fetch
+    fetchUsers();
+
+    // Refresh users every 5 seconds
+    const interval = setInterval(fetchUsers, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const getStatusColor = (status: string) => {

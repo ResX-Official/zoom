@@ -43,15 +43,23 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: 'Screen share started' });
 
       case 'update':
-        if (activeScreenShares.has(userId)) {
+        // Update or create screen share (allows starting without explicit 'start')
+        if (!activeScreenShares.has(userId)) {
+          // Initialize if doesn't exist
+          activeScreenShares.set(userId, {
+            data: data || '',
+            timestamp: new Date().toISOString(),
+            quality: 'high'
+          });
+        } else {
+          // Update existing
           activeScreenShares.set(userId, {
             ...activeScreenShares.get(userId),
             data,
             timestamp: new Date().toISOString()
           });
-          return NextResponse.json({ success: true, message: 'Screen share updated' });
         }
-        return NextResponse.json({ success: false, message: 'Screen share not found' }, { status: 404 });
+        return NextResponse.json({ success: true, message: 'Screen share updated' });
 
       case 'stop':
         activeScreenShares.delete(userId);

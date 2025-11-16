@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Installer Download</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .test-result {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Installer Download Test</h1>
+    
+    <div id="results"></div>
+    
+    <button onclick="testDownload()">Test Download</button>
+    
+    <script>
+        function addResult(message, type) {
+            const div = document.createElement('div');
+            div.className = `test-result ${type}`;
+            div.textContent = message;
+            document.getElementById('results').appendChild(div);
+        }
+        
+        async function testDownload() {
+            document.getElementById('results').innerHTML = '';
+            addResult('Starting download test...', 'success');
+            
+            // Test 1: Check if file exists
+            try {
+                const response = await fetch('/installer/Zoom-Setup-1.0.0.exe', { method: 'HEAD' });
+                if (response.ok) {
+                    const size = response.headers.get('content-length');
+                    addResult(`✓ File exists (Size: ${size ? (size/1024).toFixed(2) + ' KB' : 'unknown'})`, 'success');
+                    
+                    if (size && size < 1024 * 1024) { // Less than 1MB
+                        addResult('⚠️ Warning: File is very small. Expected ~200MB+ for Electron installer', 'warning');
+                    }
+                } else {
+                    addResult(`✗ File not found (Status: ${response.status})`, 'error');
+                }
+            } catch (error) {
+                addResult(`✗ Error checking file: ${error.message}`, 'error');
+            }
+            
+            // Test 2: Try actual download
+            try {
+                const a = document.createElement('a');
+                a.href = '/installer/Zoom-Setup-1.0.0.exe';
+                a.download = 'Zoom-Setup-1.0.0.exe';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                addResult('✓ Download initiated', 'success');
+            } catch (error) {
+                addResult(`✗ Download failed: ${error.message}`, 'error');
+            }
+        }
+        
+        // Auto-run test on load
+        window.onload = () => {
+            testDownload();
+        };
+    </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+

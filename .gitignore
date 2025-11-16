@@ -38,3 +38,7 @@ next-env.d.ts
 .vscode
 
 .env
+
+# Electron build files (too large for Git/Vercel - host separately)
+/dist-electron
+/build-installer.nsi

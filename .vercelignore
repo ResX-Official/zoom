@@ -1,7 +1,18 @@
-.next
-node_modules
-*.log
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+# Exclude Electron build SOURCE files from Vercel deployment
+dist-electron/
+electron/
+package-electron.json
+build-installer.nsi
+
+# Exclude large installer files (exceeds Vercel's 100MB limit)
+# Installer should be hosted separately (GitHub Releases, S3, etc.)
+public/installer/*.exe
+public/installer/*.zip
+
+# Node modules are handled automatically
+node_modules/
+
+# Build artifacts
+.next/
+out/
+build/

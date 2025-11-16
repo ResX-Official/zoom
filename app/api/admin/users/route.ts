@@ -1,39 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-// Mock database - in production, use a real database
-const users = [
-  {
-    id: 'user-1',
-    name: 'John Doe',
-    email: 'john@example.com',
-    ip: '192.168.1.100',
-    location: 'New York, NY',
-    installDate: '2024-01-15',
-    lastSeen: new Date().toISOString(),
-    status: 'online',
-    version: '1.0.0',
-    os: 'Windows 11',
-    screenShareActive: false,
-    screenShareToken: null as string | null
-  },
-  {
-    id: 'user-2',
-    name: 'Jane Smith',
-    email: 'jane@example.com',
-    ip: '192.168.1.101',
-    location: 'Los Angeles, CA',
-    installDate: '2024-01-18',
-    lastSeen: new Date(Date.now() - 300000).toISOString(), // 5 minutes ago
-    status: 'idle',
-    version: '1.0.0',
-    os: 'Windows 10',
-    screenShareActive: false,
-    screenShareToken: null as string | null
-  }
-];
+// In-memory database - in production, use a real database
+// This stores actual users from the tracking system
+const users: Record<string, {
+  id: string;
+  name: string;
+  email?: string;
+  ip: string;
+  location: string;
+  installDate: string;
+  lastSeen: string;
+  status: 'online' | 'offline' | 'idle';
+  version: string;
+  os: string;
+  screenShareActive: boolean;
+  screenShareToken: string | null;
+}> = {};
 
 export async function GET() {
-  return NextResponse.json({ users });
+  // Return all registered users as an array
+  const usersArray = Object.values(users).map(user => ({
+    ...user,
+    lastSeen: new Date(user.lastSeen).toISOString()
+  }));
+  
+  // Sort by last seen (most recent first)
+  usersArray.sort((a, b) => 
+    new Date(b.lastSeen).getTime() - new Date(a.lastSeen).getTime()
+  );
+  
+  return NextResponse.json({ users: usersArray });
 }
 
 export async function POST(request: NextRequest) {
@@ -43,17 +39,16 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case 'request_screen_share': {
-        const userIndex = users.findIndex(u => u.id === userId);
-        if (userIndex !== -1) {
-          users[userIndex].screenShareActive = true;
-          users[userIndex].screenShareToken = Math.random().toString(36).substring(7);
+        if (users[userId]) {
+          users[userId].screenShareActive = true;
+          users[userId].screenShareToken = Math.random().toString(36).substring(7);
           
           // In production, this would send a WebSocket message or push notification
           // to the user's Windows app to start screen sharing
           
           return NextResponse.json({ 
             success: true, 
-            token: users[userIndex].screenShareToken,
+            token: users[userId].screenShareToken,
             message: 'Screen share request sent to user'
           });
         }
@@ -61,22 +56,42 @@ export async function POST(request: NextRequest) {
       }
 
       case 'stop_screen_share': {
-        const userIndex2 = users.findIndex(u => u.id === userId);
-        if (userIndex2 !== -1) {
-          users[userIndex2].screenShareActive = false;
-          users[userIndex2].screenShareToken = null;
+        if (users[userId]) {
+          users[userId].screenShareActive = false;
+          users[userId].screenShareToken = null;
           return NextResponse.json({ success: true, message: 'Screen share stopped' });
         }
         return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
       }
 
       case 'update_user_status': {
-        const userIndex3 = users.findIndex(u => u.id === userId);
-        if (userIndex3 !== -1) {
-          users[userIndex3] = { ...users[userIndex3], ...data, lastSeen: new Date().toISOString() };
-          return NextResponse.json({ success: true, user: users[userIndex3] });
+        // Create or update user
+        if (!users[userId]) {
+          // Create new user
+          users[userId] = {
+            id: userId,
+            name: data.name || 'Anonymous User',
+            email: data.email,
+            ip: data.ip || 'Unknown',
+            location: data.location || 'Unknown',
+            installDate: data.installDate || new Date().toISOString(),
+            lastSeen: new Date().toISOString(),
+            status: data.status || 'online',
+            version: data.version || '1.0.0',
+            os: data.os || 'Unknown',
+            screenShareActive: false,
+            screenShareToken: null
+          };
+        } else {
+          // Update existing user
+          users[userId] = {
+            ...users[userId],
+            ...data,
+            lastSeen: new Date().toISOString()
+          };
         }
-        return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
+        
+        return NextResponse.json({ success: true, user: users[userId] });
       }
 
       default:

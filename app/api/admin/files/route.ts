@@ -64,11 +64,103 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Get user's file system data
-    const userFileSystem = mockFileSystem[userId as keyof typeof mockFileSystem];
+    // FIRST: Check if we have real file system data from Electron client
+    const realFileSystem = userFileSystems[userId];
+    
+    if (realFileSystem && realFileSystem.directories) {
+      // Use real file system data from Electron
+      const { directories } = realFileSystem;
+      
+      // Handle root path - show drives or home directory
+      if (!filePath || filePath === '/') {
+        const contents: any[] = [];
+        
+        // Add drives if available
+        if (realFileSystem.drives && realFileSystem.drives.length > 0) {
+          realFileSystem.drives.forEach((drive: string) => {
+            contents.push({
+              name: drive,
+              type: 'folder',
+              size: 0,
+              modified: new Date().toISOString(),
+              path: drive
+            });
+          });
+        }
+        
+        // Add home directory folders
+        Object.keys(directories).forEach((dirName) => {
+          contents.push({
+            name: dirName,
+            type: 'folder',
+            size: 0,
+            modified: new Date().toISOString(),
+            path: dirName
+          });
+        });
+        
+        return NextResponse.json({
+          path: '/',
+          contents,
+          user: userId
+        });
+      }
+      
+      // Navigate to requested path
+      const pathParts = filePath.split('/').filter(part => part.length > 0);
+      
+      // Check if it's a drive path (C:, D:, etc.)
+      if (pathParts.length === 1 && pathParts[0].endsWith(':')) {
+        // Drive root - would need to request from client
+        return NextResponse.json({
+          path: filePath,
+          contents: [],
+          user: userId,
+          message: 'Drive contents - request from client'
+        });
+      }
+      
+      // Navigate through directories
+      let currentData: any = directories;
+      let currentPath = '';
+      
+      for (const part of pathParts) {
+        if (currentData && currentData[part]) {
+          currentData = currentData[part];
+          currentPath += (currentPath ? '/' : '') + part;
+        } else {
+          return NextResponse.json({ error: 'Path not found' }, { status: 404 });
+        }
+      }
+      
+      // Convert directory data to file items
+      const contents = Array.isArray(currentData) 
+        ? currentData.map((item: any) => ({
+            name: item.name,
+            type: item.type || 'file',
+            size: item.size || 0,
+            modified: item.modified || new Date().toISOString(),
+            path: item.path || (currentPath + '/' + item.name)
+          }))
+        : [];
+      
+      return NextResponse.json({
+        path: currentPath || '/',
+        contents,
+        user: userId
+      });
+    }
+    
+    // FALLBACK: Use mock data for demo users
+    const userFileSystem: any = mockFileSystem[userId as keyof typeof mockFileSystem];
     
     if (!userFileSystem) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ 
+        path: '/',
+        contents: [],
+        user: userId,
+        message: 'No file system data available. Waiting for client to send data...'
+      });
     }
 
     // Parse the requested path
@@ -88,11 +180,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Get contents of current location
-    const contents = Object.entries(currentLocation).map(([name, item]) => ({
+    const contents = Object.entries(currentLocation).map(([name, item]: [string, any]) => ({
       name,
-      type: item.type,
-      size: item.size,
-      modified: item.modified,
+      type: item?.type || 'folder',
+      size: item?.size || 0,
+      modified: item?.modified || new Date().toISOString(),
       path: currentPath + (currentPath ? '/' : '') + name
     }));
 
@@ -107,12 +199,25 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// Store file system data sent by clients
+const userFileSystems: Record<string, any> = {};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { action, filePath, content } = body;
+    const { action, userId, filePath, content, data } = body;
 
     switch (action) {
+      case 'update_file_system':
+        // Store file system data sent by the client
+        if (userId && data) {
+          userFileSystems[userId] = data;
+        }
+        return NextResponse.json({
+          success: true,
+          message: 'File system data updated'
+        });
+
       case 'download_file':
         // In production, this would stream the actual file content
         return NextResponse.json({
