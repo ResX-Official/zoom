@@ -63,7 +63,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       const sources = await ipcRenderer.invoke('capture-screen');
       if (sources && sources.length > 0) {
         // Get primary screen
-        const primaryScreen = sources.find((s: any) => s.name.includes('Screen') || s.name.includes('Entire screen')) || sources[0];
+        const primaryScreen = sources.find((source) => source.name.includes('Screen') || source.name.includes('Entire screen')) || sources[0];
         return primaryScreen.thumbnail.toDataURL();
       }
       return null;

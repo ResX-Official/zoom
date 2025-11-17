@@ -1,14 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET(request: NextRequest) {
-  // Option 1: Use environment variable for installer URL (recommended)
-  // Set INSTALLER_URL in Vercel environment variables
-  const installerUrl = process.env.INSTALLER_URL || 
-    // Option 2: Fallback to GitHub Releases or other CDN
-    'https://github.com/your-username/zoom-clone/releases/download/v1.0.0/Zoom-Setup-1.0.0.exe' ||
-    // Option 3: Try local file (only works if file exists and is under 100MB)
-    '/installer/Zoom-Setup-1.0.0.exe';
+  // Get installer URL from environment variable
+  const installerUrl = process.env.INSTALLER_URL;
 
-  // Redirect to the installer URL
-  return NextResponse.redirect(new URL(installerUrl, request.url));
+  // Log for debugging (will show in Vercel logs)
+  console.log('INSTALLER_URL:', installerUrl ? 'Set' : 'NOT SET');
+  console.log('Full URL:', installerUrl);
+
+  if (!installerUrl) {
+    console.error('INSTALLER_URL environment variable is not set!');
+    return NextResponse.json(
+      { error: 'Installer URL not configured. Please set INSTALLER_URL environment variable in Vercel.' },
+      { status: 500 }
+    );
+  }
+
+  // If it's an absolute URL (starts with http:// or https://), redirect directly
+  if (installerUrl.startsWith('http://') || installerUrl.startsWith('https://')) {
+    console.log('Redirecting to:', installerUrl);
+    // Use 307 (Temporary Redirect) to preserve method and ensure browser follows it
+    return NextResponse.redirect(installerUrl, { status: 307 });
+  }
+
+  // If it's a relative URL, construct absolute URL
+  const url = new URL(installerUrl, request.url);
+  console.log('Redirecting to:', url.toString());
+  return NextResponse.redirect(url, { status: 307 });
 }

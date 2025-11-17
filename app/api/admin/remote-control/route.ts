@@ -48,6 +48,7 @@ export async function GET(request: Request) {
   }
 
   const session = activeSessions[userId];
+
   if (session) {
     return NextResponse.json({
       isActive: session.isActive,
@@ -56,9 +57,19 @@ export async function GET(request: Request) {
       mousePosition: session.mousePosition,
       systemState: session.systemState
     });
-  } else {
-    return NextResponse.json({ message: 'No active session for this user' }, { status: 404 });
   }
+
+  return NextResponse.json({
+    isActive: false,
+    lastCommand: 'none',
+    lastActivity: new Date().toISOString(),
+    mousePosition: { x: 0, y: 0 },
+    systemState: {
+      volume: 50,
+      isMuted: false,
+      activeWindow: 'Desktop'
+    }
+  });
 }
 
 export async function POST(request: Request) {
@@ -92,6 +103,35 @@ export async function POST(request: Request) {
   if (action === 'command_executed') {
     // Command was executed by client, just acknowledge
     return NextResponse.json({ success: true, message: 'Command execution confirmed' });
+  }
+
+  // Handle session lifecycle commands without queueing
+  if (action === 'start_control') {
+    session.isActive = true;
+    return NextResponse.json({
+      success: true,
+      message: 'Remote control started',
+      sessionState: {
+        isActive: session.isActive,
+        mousePosition: session.mousePosition,
+        systemState: session.systemState,
+        lastActivity: session.lastActivity
+      }
+    });
+  }
+
+  if (action === 'stop_control') {
+    session.isActive = false;
+    return NextResponse.json({
+      success: true,
+      message: 'Remote control stopped',
+      sessionState: {
+        isActive: session.isActive,
+        mousePosition: session.mousePosition,
+        systemState: session.systemState,
+        lastActivity: session.lastActivity
+      }
+    });
   }
 
   // Queue command for client to execute
@@ -200,16 +240,6 @@ export async function POST(request: Request) {
 
       case 'window_close':
         result.message = 'Active window closed';
-        break;
-
-      case 'start_control':
-        session.isActive = true;
-        result.message = 'Remote control started';
-        break;
-
-      case 'stop_control':
-        session.isActive = false;
-        result.message = 'Remote control stopped';
         break;
 
       default:

